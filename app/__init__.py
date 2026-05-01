@@ -18,6 +18,9 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     register_blueprints(app)
 
+    with app.app_context():
+        db.create_all()
+
     @app.get("/")
     def index():
         return render_template("index.html")
