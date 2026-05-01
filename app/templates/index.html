@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RSistems — Demo Chat</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 14px;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    #window {
+      width: 100%;
+      max-width: 760px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    #titlebar {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #8b949e;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #titlebar .dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-red   { background: #ff5f57; }
+    .dot-yel   { background: #febc2e; }
+    .dot-grn   { background: #28c840; }
+
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      line-height: 1.7;
+      scroll-behavior: smooth;
+    }
+
+    .line { display: flex; gap: 6px; margin-bottom: 2px; white-space: pre-wrap; word-break: break-word; }
+    .line.bot  .prefix { color: #58a6ff; flex-shrink: 0; }
+    .line.user .prefix { color: #3fb950; flex-shrink: 0; }
+    .line.sys  .prefix { color: #8b949e; flex-shrink: 0; }
+    .line.err  .prefix { color: #f85149; flex-shrink: 0; }
+    .line.err  .text   { color: #f85149; }
+
+    #input-row {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid #30363d;
+      background: #161b22;
+      padding: 10px 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #prompt-label { color: #3fb950; flex-shrink: 0; }
+
+    #user-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #c9d1d9;
+      font-family: inherit;
+      font-size: 14px;
+      caret-color: #3fb950;
+    }
+
+    #send-btn {
+      background: #1f6feb;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #send-btn:hover { background: #388bfd; }
+    #send-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+    .spinner { color: #8b949e; animation: blink 1s step-start infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    #output::-webkit-scrollbar { width: 6px; }
+    #output::-webkit-scrollbar-track { background: transparent; }
+    #output::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div id="window">
+  <div id="titlebar">
+    <span class="dot dot-red"></span>
+    <span class="dot dot-yel"></span>
+    <span class="dot dot-grn"></span>
+    <span style="margin-left:6px;">rsistems-demo — chat</span>
+  </div>
+
+  <div id="output"></div>
+
+  <div id="input-row">
+    <span id="prompt-label">you&gt;&nbsp;</span>
+    <input id="user-input" type="text" placeholder="Scrieți un mesaj..." autocomplete="off" disabled />
+    <button id="send-btn" disabled>Trimite</button>
+  </div>
+</div>
+
+<script>
+  const output   = document.getElementById("output");
+  const input    = document.getElementById("user-input");
+  const sendBtn  = document.getElementById("send-btn");
+
+  let conversationId = null;
+
+  function addLine(role, text) {
+    const prefixes = { bot: "rsistems>", user: "you>", sys: "#", err: "!" };
+    const div = document.createElement("div");
+    div.className = "line " + role;
+    div.innerHTML =
+      '<span class="prefix">' + (prefixes[role] || "#") + "</span>" +
+      '<span class="text">' + escHtml(text) + "</span>";
+    output.appendChild(div);
+    output.scrollTop = output.scrollHeight;
+    return div;
+  }
+
+  function addSpinner() {
+    const div = document.createElement("div");
+    div.className = "line bot";
+    div.innerHTML = '<span class="prefix">rsistems&gt;</span><span class="spinner">▌</span>';
+    output.appendChild(div);
+    output.scrollTop = output.scrollHeight;
+    return div;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function setReady(ready) {
+    input.disabled  = !ready;
+    sendBtn.disabled = !ready;
+    if (ready) input.focus();
+  }
+
+  async function postChat(payload) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Eroare server");
+    return data;
+  }
+
+  async function startConversation() {
+    addLine("sys", "Conectare...");
+    try {
+      const data = await postChat({});
+      conversationId = data.conversation_id;
+      output.innerHTML = "";
+      addLine("bot", data.reply);
+      addLine("sys", "Tastați /new pentru o conversație nouă.");
+      setReady(true);
+    } catch (e) {
+      addLine("err", "Nu s-a putut conecta: " + e.message);
+    }
+  }
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    setReady(false);
+
+    if (text.toLowerCase() === "/new") {
+      output.innerHTML = "";
+      conversationId = null;
+      await startConversation();
+      return;
+    }
+
+    addLine("user", text);
+    const spinner = addSpinner();
+
+    try {
+      const data = await postChat({ conversation_id: conversationId, message: text });
+      spinner.remove();
+      addLine("bot", data.reply);
+    } catch (e) {
+      spinner.remove();
+      addLine("err", e.message);
+    }
+
+    setReady(true);
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+
+  startConversation();
+</script>
+
+</body>
+</html>

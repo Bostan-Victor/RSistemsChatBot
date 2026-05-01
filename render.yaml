@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: rsistems-chatbot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
