@@ -11,3 +11,11 @@ services:
         generateValue: true
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: GOOGLE_CALENDAR_ID
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON_PATH
+        value: /etc/secrets/google-service-account.json
+      - key: GMAIL_SMTP_USER
+        sync: false
+      - key: GMAIL_SMTP_APP_PASSWORD
+        sync: false

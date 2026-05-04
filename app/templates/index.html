@@ -109,6 +109,236 @@
     #output::-webkit-scrollbar { width: 6px; }
     #output::-webkit-scrollbar-track { background: transparent; }
     #output::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    #cta-bar {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-shrink: 0;
+    }
+
+    .cta-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, filter 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .cta-btn:hover  { filter: brightness(1.12); }
+    .cta-btn:active { filter: brightness(0.92); }
+
+    #btn-demo {
+      background: #1f6feb;
+      color: #fff;
+    }
+
+    #btn-whatsapp {
+      background: #25d366;
+      color: #fff;
+    }
+
+    /* ── Modal overlay ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 480px;
+      padding: 28px 28px 24px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      color: #c9d1d9;
+      position: relative;
+    }
+
+    #modal h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #e6edf3;
+    }
+    #modal .subtitle {
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 20px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px; right: 16px;
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #e6edf3; }
+
+    .step { display: none; }
+    .step.active { display: block; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      padding: 9px 12px;
+      color: #c9d1d9;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+      outline: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: #1f6feb; }
+    .form-group select option { background: #161b22; }
+
+    .modal-err {
+      color: #f85149;
+      font-size: 12px;
+      margin-bottom: 10px;
+      min-height: 18px;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #1f6feb;
+      color: #fff;
+      margin-top: 4px;
+    }
+    .modal-btn:hover { background: #388bfd; }
+    .modal-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+    /* Calendar grid */
+    #cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    #cal-header span { font-weight: 700; font-size: 14px; }
+    #cal-header button {
+      background: none;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      color: #c9d1d9;
+      padding: 3px 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #cal-header button:hover { border-color: #58a6ff; color: #58a6ff; }
+
+    #cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .cal-day-name {
+      text-align: center;
+      font-size: 11px;
+      color: #8b949e;
+      padding: 2px 0;
+      font-weight: 700;
+    }
+    .cal-day {
+      text-align: center;
+      padding: 6px 2px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .cal-day.empty { cursor: default; }
+    .cal-day.past, .cal-day.weekend {
+      color: #484f58;
+      cursor: not-allowed;
+    }
+    .cal-day.available:hover {
+      border-color: #1f6feb;
+      color: #58a6ff;
+    }
+    .cal-day.selected {
+      background: #1f6feb;
+      color: #fff;
+      border-color: #1f6feb;
+    }
+
+    /* Slot grid */
+    #slots-container { margin-bottom: 16px; }
+    #slots-container .slots-label {
+      font-size: 12px;
+      color: #8b949e;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    #slots-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .slot-btn {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      color: #c9d1d9;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .slot-btn:hover { border-color: #1f6feb; color: #58a6ff; }
+    .slot-btn.selected { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+    .slots-loading { color: #8b949e; font-size: 13px; }
+
+    .modal-success {
+      text-align: center;
+      padding: 12px 0 8px;
+    }
+    .modal-success .icon { font-size: 40px; margin-bottom: 10px; }
+    .modal-success p { font-size: 14px; line-height: 1.6; }
+    .modal-success .sub { color: #8b949e; font-size: 12px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -128,6 +358,90 @@
     <input id="user-input" type="text" placeholder="Scrieți un mesaj..." autocomplete="off" disabled />
     <button id="send-btn" disabled>Trimite</button>
   </div>
+</div>
+
+<!-- Demo Reservation Modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <button class="modal-close" id="modal-close-btn" aria-label="Închide">&times;</button>
+
+    <!-- Step 1: Contact info -->
+    <div class="step active" id="step-1">
+      <h2>Rezervă Demo în Showroom</h2>
+      <p class="subtitle">Completați datele de contact pentru a rezerva un demo.</p>
+
+      <div class="form-group">
+        <label>Nume complet *</label>
+        <input type="text" id="res-name" placeholder="Ion Popescu" autocomplete="name" />
+      </div>
+      <div class="form-group">
+        <label>Telefon *</label>
+        <input type="tel" id="res-phone" placeholder="07xx xxx xxx" autocomplete="tel" />
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="res-email" placeholder="email@exemplu.ro" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>Tip afacere *</label>
+        <select id="res-business">
+          <option value="">— Selectați —</option>
+          <option>Restaurant</option>
+          <option>Cafenea</option>
+          <option>Bar / Pub</option>
+          <option>Fast-food</option>
+          <option>Delivery / Takeaway</option>
+          <option>Lanț de locații</option>
+        </select>
+      </div>
+
+      <div class="modal-err" id="step1-err"></div>
+      <button class="modal-btn" id="step1-next">Continuă →</button>
+    </div>
+
+    <!-- Step 2: Date & slot picker -->
+    <div class="step" id="step-2">
+      <h2>Alegeți data și ora</h2>
+      <p class="subtitle">Luni–Vineri, 10:00–18:00. Selectați o zi disponibilă.</p>
+
+      <div id="cal-header">
+        <button id="cal-prev">&#8249;</button>
+        <span id="cal-month-label"></span>
+        <button id="cal-next">&#8250;</button>
+      </div>
+      <div id="cal-grid"></div>
+
+      <div id="slots-container" style="display:none;">
+        <div class="slots-label">Ore disponibile</div>
+        <div id="slots-grid"></div>
+      </div>
+
+      <div class="modal-err" id="step2-err"></div>
+      <button class="modal-btn" id="step2-confirm" disabled>Confirmă rezervarea</button>
+      <button class="modal-btn" style="background:#21262d;color:#c9d1d9;margin-top:8px;" id="step2-back">← Înapoi</button>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="step" id="step-3">
+      <div class="modal-success">
+        <div class="icon">✅</div>
+        <p>Rezervarea a fost confirmată!</p>
+        <p class="sub">Veți primi un email de confirmare în scurt timp.</p>
+        <button class="modal-btn" style="margin-top:20px;" id="step3-close">Închide</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cta-bar">
+  <button class="cta-btn" id="btn-demo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Rezervă Demo în Showroom
+  </button>
+  <button class="cta-btn" id="btn-whatsapp">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Contactează pe WhatsApp
+  </button>
 </div>
 
 <script>
@@ -229,6 +543,200 @@
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendMessage();
   });
+
+  // TODO: wire up WhatsApp button when number is available
+  document.getElementById("btn-whatsapp").addEventListener("click", () => {
+    // placeholder — will open wa.me link once implemented
+  });
+
+  // ── Demo Reservation Modal ──────────────────────────────────────────────
+  const overlay      = document.getElementById("modal-overlay");
+  const step1        = document.getElementById("step-1");
+  const step2        = document.getElementById("step-2");
+  const step3        = document.getElementById("step-3");
+  const step1Err     = document.getElementById("step1-err");
+  const step2Err     = document.getElementById("step2-err");
+  const confirmBtn   = document.getElementById("step2-confirm");
+  const slotsBox     = document.getElementById("slots-container");
+  const slotsGrid    = document.getElementById("slots-grid");
+
+  let calYear, calMonth, selectedDate = null, selectedSlot = null;
+
+  function openModal() {
+    overlay.classList.add("open");
+    showStep(1);
+    const now = new Date();
+    calYear  = now.getFullYear();
+    calMonth = now.getMonth();
+    renderCalendar();
+  }
+  function closeModal() { overlay.classList.remove("open"); }
+
+  document.getElementById("btn-demo").addEventListener("click", openModal);
+  document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+  document.getElementById("step3-close").addEventListener("click", closeModal);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+
+  function showStep(n) {
+    [step1, step2, step3].forEach((s, i) => s.classList.toggle("active", i + 1 === n));
+  }
+
+  // Step 1 → Step 2
+  document.getElementById("step1-next").addEventListener("click", () => {
+    step1Err.textContent = "";
+    const name  = document.getElementById("res-name").value.trim();
+    const phone = document.getElementById("res-phone").value.trim();
+    const email = document.getElementById("res-email").value.trim();
+    const biz   = document.getElementById("res-business").value;
+    if (name.length < 2)  { step1Err.textContent = "Introduceți numele complet."; return; }
+    if (phone.length < 9) { step1Err.textContent = "Introduceți un număr de telefon valid."; return; }
+    if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { step1Err.textContent = "Introduceți un email valid."; return; }
+    if (!biz) { step1Err.textContent = "Selectați tipul de afacere."; return; }
+    selectedDate = null;
+    selectedSlot = null;
+    showStep(2);
+    renderCalendar();
+  });
+
+  document.getElementById("step2-back").addEventListener("click", () => showStep(1));
+
+  // ── Calendar ──
+  const MONTHS_RO = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie",
+                     "Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+
+  document.getElementById("cal-prev").addEventListener("click", () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+  });
+
+  function renderCalendar() {
+    document.getElementById("cal-month-label").textContent =
+      MONTHS_RO[calMonth] + " " + calYear;
+
+    const grid = document.getElementById("cal-grid");
+    grid.innerHTML = "";
+
+    ["Lu","Ma","Mi","Jo","Vi","Sâ","Du"].forEach(d => {
+      const el = document.createElement("div");
+      el.className = "cal-day-name";
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const offset = (firstDay === 0) ? 6 : firstDay - 1;
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    for (let i = 0; i < offset; i++) {
+      const el = document.createElement("div"); el.className = "cal-day empty";
+      grid.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(calYear, calMonth, d);
+      const el = document.createElement("div");
+      el.textContent = d;
+      const dow = date.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const isPast    = date < today;
+      const dateStr   = isoDate(date);
+      const isSel     = selectedDate === dateStr;
+
+      el.className = "cal-day" +
+        (isWeekend ? " weekend" : isPast ? " past" : " available") +
+        (isSel ? " selected" : "");
+
+      if (!isWeekend && !isPast) {
+        el.addEventListener("click", () => selectDate(dateStr));
+      }
+      grid.appendChild(el);
+    }
+  }
+
+  function isoDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return y + "-" + m + "-" + day;
+  }
+
+  async function selectDate(dateStr) {
+    selectedDate = dateStr;
+    selectedSlot = null;
+    confirmBtn.disabled = true;
+    step2Err.textContent = "";
+    renderCalendar();
+
+    slotsBox.style.display = "block";
+    slotsGrid.innerHTML = "<span class='slots-loading'>Se încarcă orele disponibile...</span>";
+
+    try {
+      const res  = await fetch("/api/demo-reservation/slots?date=" + dateStr);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Eroare server");
+
+      slotsGrid.innerHTML = "";
+      if (!data.slots || data.slots.length === 0) {
+        slotsGrid.innerHTML = "<span class='slots-loading'>Nicio oră disponibilă în această zi.</span>";
+        return;
+      }
+      data.slots.forEach(iso => {
+        const btn = document.createElement("button");
+        btn.className = "slot-btn";
+        btn.textContent = iso.substring(11, 16);
+        btn.dataset.iso = iso;
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          selectedSlot = iso;
+          confirmBtn.disabled = false;
+        });
+        slotsGrid.appendChild(btn);
+      });
+    } catch(e) {
+      slotsGrid.innerHTML = "";
+      step2Err.textContent = "Nu s-au putut încărca orele: " + e.message;
+    }
+  }
+
+  // Confirm booking
+  confirmBtn.addEventListener("click", async () => {
+    step2Err.textContent = "";
+    if (!selectedDate || !selectedSlot) {
+      step2Err.textContent = "Selectați o dată și o oră."; return;
+    }
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Se procesează...";
+
+    try {
+      const res = await fetch("/api/demo-reservation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name:          document.getElementById("res-name").value.trim(),
+          phone:         document.getElementById("res-phone").value.trim(),
+          email:         document.getElementById("res-email").value.trim(),
+          business_type: document.getElementById("res-business").value,
+          datetime:      selectedSlot,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Eroare server");
+      showStep(3);
+    } catch(e) {
+      step2Err.textContent = "Eroare: " + e.message;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Confirmă rezervarea";
+    }
+  });
+  // ── End Modal ───────────────────────────────────────────────────────────
 
   startConversation();
 </script>

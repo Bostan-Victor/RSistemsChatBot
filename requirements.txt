@@ -10,3 +10,8 @@ flask-migrate>=4.0.0
 
 # OpenAI client (used once LLM integration is implemented)
 openai>=1.0.0
+
+# Google Calendar integration
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+google-auth-httplib2>=0.2.0
