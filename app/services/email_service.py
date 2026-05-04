@@ -57,6 +57,6 @@ def send_demo_confirmation(
     msg["To"] = to_email
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
         server.login(smtp_user, smtp_password)
         server.sendmail(smtp_user, to_email, msg.as_string())
