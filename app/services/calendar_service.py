@@ -124,7 +124,6 @@ def create_event(
         ),
         "start": {"dateTime": start_dt.isoformat(), "timeZone": "Europe/Bucharest"},
         "end": {"dateTime": end_dt.isoformat(), "timeZone": "Europe/Bucharest"},
-        "attendees": [{"email": email}],
     }
 
     created = service.events().insert(calendarId=calendar_id, body=event_body).execute()
