@@ -9,6 +9,7 @@ from ..services.conversation_store import InMemoryConversationStore
 from ..services.knowledge_base import KnowledgeBase
 from ..services.llm_client import LLMClient
 from ..services.lead_service import LeadService
+from ..services.telegram_service import send_lead_notification
 from ..services.validators import is_valid_email, is_valid_phone
 
 
@@ -392,6 +393,11 @@ def chat():
 				reply = "A apărut o problemă la salvarea datelor. Puteți încerca din nou sau îmi lăsați doar un număr de telefon/email și revenim noi."
 				_store.append(conversation_id, {"role": "assistant", "content": reply})
 				return jsonify({"conversation_id": conversation_id, "reply": reply})
+
+			try:
+				send_lead_notification(lead)
+			except Exception as exc:
+				current_app.logger.warning("Telegram notification failed: %s", exc)
 
 			# Reset lead capture
 			_store.update_meta(
