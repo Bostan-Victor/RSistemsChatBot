@@ -247,7 +247,7 @@ def _system_prompt() -> str:
 
 def _greeting() -> str:
 	return (
-		"Bună! Pentru a vă recomanda soluția potrivită, îmi spuneți ce tip de locație aveți? "
+		"Bună! Sunt asistentul virtual RSistems. Vă pot ajuta cu automatizare HoReCa, retail, supraveghere video, sisteme de parcare sau panouri digitale. Pentru ce tip de afacere căutați o soluție? "
 		"(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
 	)
 
@@ -421,7 +421,7 @@ def chat():
 	if stage == "awaiting_business_type":
 		bt = _extract_business_type(user_text)
 		if not bt:
-			reply = "Mulțumesc! Îmi puteți spune tipul locației? (Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+			reply = "Nu am reușit să identific tipul afacerii. Lucrați cu un Restaurant, Cafenea, Bar-Pub, Fast-food, Delivery sau Lanț de locații?"
 			_store.append(conversation_id, {"role": "assistant", "content": reply})
 			return jsonify({"conversation_id": conversation_id, "reply": reply})
 
