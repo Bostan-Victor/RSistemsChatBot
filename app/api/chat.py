@@ -13,6 +13,7 @@ from ..services.telegram_service import (
     send_lead_notification,
     send_support_notification,
     send_human_transfer_notification,
+    send_transcript_document,
 )
 from ..services.validators import is_valid_email, is_valid_phone
 
@@ -457,7 +458,7 @@ def _handle_support_flow(conversation_id: str, user_text: str, meta: dict) -> st
             return "Vă rog să descrieți puțin mai detaliat problema."
         s["issue"] = issue
         s["step"] = None
-        _store.update_meta(conversation_id, {"support": s, "stage": "chatting"})
+        _store.update_meta(conversation_id, {"support": s, "stage": "ended"})
 
         try:
             send_support_notification(
@@ -469,9 +470,18 @@ def _handle_support_flow(conversation_id: str, user_text: str, meta: dict) -> st
         except Exception as exc:
             current_app.logger.warning("Support Telegram notification failed: %s", exc)
 
+        try:
+            history = _store.get(conversation_id)
+            send_transcript_document(
+                lead_ref=f"Suport — {s.get('company', 'necunoscut')}",
+                messages=history,
+            )
+        except Exception as exc:
+            current_app.logger.warning("Support transcript send failed: %s", exc)
+
         return (
             "Am înregistrat solicitarea de suport. Un specialist RSistems vă va contacta cât mai curând.\n\n"
-            "Doriți să mai aflați ceva?"
+            "Vă mulțumim că ați contactat RSistems. O zi bună!"
         )
 
     return None
@@ -507,7 +517,7 @@ def _handle_human_transfer(conversation_id: str, user_text: str, meta: dict) -> 
             return "Vă rog să specificați subiectul (minim 2 caractere)."
         h["topic"] = topic
         h["step"] = None
-        _store.update_meta(conversation_id, {"human_transfer": h, "stage": "chatting"})
+        _store.update_meta(conversation_id, {"human_transfer": h, "stage": "ended"})
 
         try:
             send_human_transfer_notification(
@@ -518,9 +528,18 @@ def _handle_human_transfer(conversation_id: str, user_text: str, meta: dict) -> 
         except Exception as exc:
             current_app.logger.warning("Human transfer Telegram notification failed: %s", exc)
 
+        try:
+            history = _store.get(conversation_id)
+            send_transcript_document(
+                lead_ref=f"Transfer — {h.get('name', 'necunoscut')}",
+                messages=history,
+            )
+        except Exception as exc:
+            current_app.logger.warning("Human transfer transcript send failed: %s", exc)
+
         return (
             "Am transmis solicitarea dvs. Un manager RSistems vă va contacta în cel mai scurt timp.\n\n"
-            "Doriți să mai aflați ceva între timp?"
+            "Vă mulțumim că ați contactat RSistems. O zi bună!"
         )
 
     return None
@@ -571,7 +590,7 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
             return "Vă rog să îmi spuneți numele afacerii (minim 2 caractere)."
         draft["business_name"] = business_name
         lead_state.update({"step": None, "active": False, "draft": draft})
-        _store.update_meta(conversation_id, {"lead": lead_state, "stage": "chatting"})
+        _store.update_meta(conversation_id, {"lead": lead_state, "stage": "ended"})
 
         q = meta.get("qualifying") or {}
         payload = {
@@ -590,6 +609,7 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
             lead = LeadService.create_lead(payload)
         except Exception as exc:
             current_app.logger.warning("Lead creation failed: %s", exc)
+            _store.update_meta(conversation_id, {"stage": "lead_capture"})
             return (
                 "A apărut o problemă la salvarea datelor. "
                 "Puteți încerca din nou sau ne lăsați doar un număr de telefon și revenim noi."
@@ -600,10 +620,19 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
         except Exception as exc:
             current_app.logger.warning("Telegram lead notification failed: %s", exc)
 
+        try:
+            history = _store.get(conversation_id)
+            send_transcript_document(
+                lead_ref=f"Lead #{lead.id}",
+                messages=history,
+            )
+        except Exception as exc:
+            current_app.logger.warning("Lead transcript send failed: %s", exc)
+
         return (
             "Mulțumesc! Am înregistrat solicitarea. "
             "Un consultant RSistems vă va contacta în cel mai scurt timp.\n\n"
-            "Doriți să mai aflați ceva despre sistem?"
+            "Vă mulțumim că ați contactat RSistems. O zi bună!"
         )
 
     return None
@@ -649,6 +678,14 @@ def chat():
     user_text = message.strip()
     meta = _store.get_meta(conversation_id)
     stage = meta.get("stage")
+
+    # Conversation closed — ignore further messages
+    if stage == "ended":
+        return jsonify({
+            "conversation_id": conversation_id,
+            "reply": "Această conversație s-a încheiat. Scrieți /new pentru a începe una nouă.",
+        })
+
     api_key = current_app.config.get("OPENAI_API_KEY", "")
     model = current_app.config.get("OPENAI_MODEL", "gpt-4o-mini")
 

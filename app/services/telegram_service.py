@@ -79,6 +79,39 @@ def send_support_notification(*, company: str, contact_name: str, phone: str, is
     response.raise_for_status()
 
 
+def send_transcript_document(*, lead_ref: str, messages: list[dict]) -> None:
+    """Send the full conversation transcript as a .txt file to Telegram.
+
+    Skips system messages. Labels turns as 'Client' / 'RSistems'.
+    Raises ValueError if env vars are missing.
+    Raises requests.RequestException on failure.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not set.")
+    if not chat_id:
+        raise ValueError("TELEGRAM_CHAT_ID is not set.")
+
+    lines = [f"Transcript conversație — {lead_ref}", "=" * 44]
+    for m in messages:
+        role = m.get("role", "")
+        if role == "system":
+            continue
+        label = "Client" if role == "user" else "RSistems"
+        lines.append(f"\n{label}:\n{m.get('content', '').strip()}")
+    content = "\n".join(lines).encode("utf-8")
+
+    response = requests.post(
+        f"{_API_BASE}/bot{token}/sendDocument",
+        data={"chat_id": chat_id, "caption": f"📋 Transcript — {lead_ref}"},
+        files={"document": (f"transcript_{lead_ref}.txt", content, "text/plain")},
+        timeout=15,
+    )
+    response.raise_for_status()
+
+
 def send_human_transfer_notification(*, name: str, phone: str, topic: str) -> None:
     """Send a Telegram message for a human manager transfer request.
 
