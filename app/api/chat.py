@@ -807,7 +807,6 @@ def chat():
         return _respond("Doriți să vă contacteze un consultant RSistems? (da / nu)")
 
     # ── Stage: chatting (free KB + LLM) ──────────────────────────────────────
-    # Always re-check for support/human escalation during free chat
     if stage == "chatting":
         if _detect_support_intent(user_text):
             _store.update_meta(conversation_id, {"support": {"step": "company"}, "stage": "support_flow"})
@@ -819,22 +818,61 @@ def chat():
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Sigur. Cum vă numiți, vă rog?")
 
+        # Re-classify to catch consultation intent during free chat
+        chat_intent = _classify_path_intent(user_text, api_key, model)
+        if chat_intent == "CONSULTATION":
+            bt = _extract_business_type(user_text) or meta.get("business_type")
+            if bt:
+                _store.update_meta(conversation_id, {
+                    "business_type": bt,
+                    "stage": "qualifying",
+                    "qualifying": {"step": "locations"},
+                })
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond(f"Am notat: {bt}. Câte locații aveți?")
+            else:
+                _store.update_meta(conversation_id, {"stage": "awaiting_business_type"})
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond(
+                    "Cu plăcere! Pentru ce tip de afacere căutați o soluție? "
+                    "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+                )
+
     history = _store.get(conversation_id)
     last_assistant = _last_assistant_message(history)
 
-    # Demo intent shortcut (any stage)
+    # Demo intent shortcut — always routes through qualifying if not yet done
     if _assistant_asked_demo(last_assistant) or _detect_demo_intent(user_text):
         label = _classify_demo_intent(
             user_text=user_text, last_assistant=last_assistant,
             api_key=api_key, model=model,
         )
         if label == "WANTS_DEMO":
-            _store.update_meta(conversation_id, {
-                "lead": {"active": True, "step": "name", "draft": {}},
-                "stage": "lead_capture",
-            })
-            _store.append(conversation_id, {"role": "user", "content": user_text})
-            return _respond("Super! Pentru a vă programa un demo, cum vă numiți?")
+            qualifying_done = meta.get("qualifying", {}).get("step") == "done"
+            if qualifying_done:
+                _store.update_meta(conversation_id, {
+                    "lead": {"active": True, "step": "name", "draft": {}},
+                    "stage": "lead_capture",
+                })
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond("Super! Cum vă numiți, vă rog?")
+            else:
+                bt = _extract_business_type(user_text) or meta.get("business_type")
+                if bt:
+                    _store.update_meta(conversation_id, {
+                        "business_type": bt,
+                        "stage": "qualifying",
+                        "qualifying": {"step": "locations"},
+                    })
+                    _store.append(conversation_id, {"role": "user", "content": user_text})
+                    return _respond(f"Super! Înainte de demo, am nevoie de câteva detalii. Câte locații aveți?")
+                else:
+                    _store.update_meta(conversation_id, {"stage": "awaiting_business_type"})
+                    _store.append(conversation_id, {"role": "user", "content": user_text})
+                    return _respond(
+                        "Super! Înainte de demo, pentru ce tip de afacere căutați o soluție? "
+                        "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+                    )
         if label == "DOESNT_WANT_DEMO":
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Spuneți-mi ce ați dori să aflați despre sistem.")
