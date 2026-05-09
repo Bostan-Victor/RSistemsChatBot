@@ -803,8 +803,21 @@ def chat():
             _store.update_meta(conversation_id, {"stage": "chatting"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Înțeles. Dacă aveți întrebări suplimentare, sunt aici să vă ajut.")
+        # Not a yes/no — answer the question first, then re-ask
+        try:
+            snippets = _kb_search(user_text)
+        except Exception:
+            snippets = []
         _store.append(conversation_id, {"role": "user", "content": user_text})
-        return _respond("Doriți să vă contacteze un consultant RSistems? (da / nu)")
+        history = _store.get(conversation_id)
+        try:
+            llm_answer = _llm_reply(
+                user_text=user_text, history=history, kb_snippets=snippets,
+                api_key=api_key, model=model,
+            )
+        except Exception:
+            llm_answer = "Nu am putut găsi un răspuns exact la întrebarea dvs."
+        return _respond(llm_answer + "\n\nDoriți să vă contacteze un consultant RSistems? (da / nu)")
 
     # ── Stage: chatting (free KB + LLM) ──────────────────────────────────────
     if stage == "chatting":
@@ -818,25 +831,28 @@ def chat():
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Sigur. Cum vă numiți, vă rog?")
 
-        # Re-classify to catch consultation intent during free chat
-        chat_intent = _classify_path_intent(user_text, api_key, model)
-        if chat_intent == "CONSULTATION":
-            bt = _extract_business_type(user_text) or meta.get("business_type")
-            if bt:
-                _store.update_meta(conversation_id, {
-                    "business_type": bt,
-                    "stage": "qualifying",
-                    "qualifying": {"step": "locations"},
-                })
-                _store.append(conversation_id, {"role": "user", "content": user_text})
-                return _respond(f"Am notat: {bt}. Câte locații aveți?")
-            else:
-                _store.update_meta(conversation_id, {"stage": "awaiting_business_type"})
-                _store.append(conversation_id, {"role": "user", "content": user_text})
-                return _respond(
-                    "Cu plăcere! Pentru ce tip de afacere căutați o soluție? "
-                    "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
-                )
+        # Re-classify to catch consultation intent during free chat.
+        # Skip if qualifying already done — follow-up questions should go to LLM.
+        qualifying_done = meta.get("qualifying", {}).get("step") == "done"
+        if not qualifying_done:
+            chat_intent = _classify_path_intent(user_text, api_key, model)
+            if chat_intent == "CONSULTATION":
+                bt = _extract_business_type(user_text) or meta.get("business_type")
+                if bt:
+                    _store.update_meta(conversation_id, {
+                        "business_type": bt,
+                        "stage": "qualifying",
+                        "qualifying": {"step": "locations"},
+                    })
+                    _store.append(conversation_id, {"role": "user", "content": user_text})
+                    return _respond(f"Am notat: {bt}. Câte locații aveți?")
+                else:
+                    _store.update_meta(conversation_id, {"stage": "awaiting_business_type"})
+                    _store.append(conversation_id, {"role": "user", "content": user_text})
+                    return _respond(
+                        "Cu plăcere! Pentru ce tip de afacere căutați o soluție? "
+                        "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+                    )
 
     history = _store.get(conversation_id)
     last_assistant = _last_assistant_message(history)
