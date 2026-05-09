@@ -15,6 +15,10 @@ class Lead(db.Model):
     email = db.Column(db.String(200), nullable=True)
     business_type = db.Column(db.String(100), nullable=True)
     locations_count = db.Column(db.Integer, nullable=True)
+    tables_count = db.Column(db.Integer, nullable=True)
+    has_existing_system = db.Column(db.Boolean, nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    contact_preference = db.Column(db.String(20), nullable=True)
     lead_score = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

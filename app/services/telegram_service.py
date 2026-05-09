@@ -26,6 +26,7 @@ def send_lead_notification(lead: Lead) -> None:
     if not chat_id:
         raise ValueError("TELEGRAM_CHAT_ID is not set.")
 
+    existing = "Da" if lead.has_existing_system is True else ("Nu" if lead.has_existing_system is False else "—")
     text = (
         f"Lead nou RSistems:\n"
         f"Nume: {lead.name}\n"
@@ -33,7 +34,70 @@ def send_lead_notification(lead: Lead) -> None:
         f"Email: {lead.email or '—'}\n"
         f"Business: {lead.business_type or '—'}\n"
         f"Nume Business: {lead.business_name or '—'}\n"
-        f"Nr. Locații: {lead.locations_count or '—'}"
+        f"Nr. Locații: {lead.locations_count or '—'}\n"
+        f"Nr. Mese/POS: {lead.tables_count or '—'}\n"
+        f"Sistem existent: {existing}\n"
+        f"Oraș: {lead.city or '—'}\n"
+        f"Preferință contact: {lead.contact_preference or '—'}"
+    )
+
+    response = requests.post(
+        f"{_API_BASE}/bot{token}/sendMessage",
+        json={"chat_id": chat_id, "text": text},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
+def send_support_notification(*, company: str, contact_name: str, phone: str, issue: str) -> None:
+    """Send a Telegram message for a support ticket.
+
+    Raises ValueError if env vars are missing.
+    Raises requests.RequestException on failure.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not set.")
+    if not chat_id:
+        raise ValueError("TELEGRAM_CHAT_ID is not set.")
+
+    text = (
+        f"🔧 Solicitare SUPORT RSistems:\n"
+        f"Companie: {company or '—'}\n"
+        f"Persoană contact: {contact_name or '—'}\n"
+        f"Telefon: {phone or '—'}\n"
+        f"Problemă: {issue or '—'}"
+    )
+
+    response = requests.post(
+        f"{_API_BASE}/bot{token}/sendMessage",
+        json={"chat_id": chat_id, "text": text},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
+def send_human_transfer_notification(*, name: str, phone: str, topic: str) -> None:
+    """Send a Telegram message for a human manager transfer request.
+
+    Raises ValueError if env vars are missing.
+    Raises requests.RequestException on failure.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not set.")
+    if not chat_id:
+        raise ValueError("TELEGRAM_CHAT_ID is not set.")
+
+    text = (
+        f"👤 Transfer MANAGER RSistems:\n"
+        f"Nume: {name or '—'}\n"
+        f"Telefon: {phone or '—'}\n"
+        f"Subiect: {topic or '—'}"
     )
 
     response = requests.post(

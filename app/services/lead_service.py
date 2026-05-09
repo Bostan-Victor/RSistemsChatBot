@@ -26,9 +26,13 @@ class LeadService:
         phone = (payload.get("phone") or "").strip() or None
         email = (payload.get("email") or "").strip() or None
         business_type = (payload.get("type_of_business") or payload.get("business_type") or "").strip() or None
+        city = (payload.get("city") or "").strip() or None
+        contact_preference = (payload.get("contact_preference") or "").strip() or None
         locations_count_raw = payload.get("nr_of_locations")
         if locations_count_raw is None:
             locations_count_raw = payload.get("locations_count")
+        tables_count_raw = payload.get("tables_count")
+        has_existing_system = payload.get("has_existing_system")
 
         if not name:
             raise ValueError("'name' is required")
@@ -36,29 +40,29 @@ class LeadService:
         if not phone:
             raise ValueError("'phone' is required")
 
-        if not email:
-            raise ValueError("'email' is required")
-
-        if not business_name:
-            raise ValueError("'business_name' is required")
-
         if not is_valid_phone(phone):
             raise ValueError("'phone' is invalid")
 
-        if not is_valid_email(email):
+        if email and not is_valid_email(email):
             raise ValueError("'email' is invalid")
 
         locations_count: int | None = None
-        if locations_count_raw in (None, ""):
-            raise ValueError("'nr_of_locations' is required")
+        if locations_count_raw not in (None, ""):
+            locations_count = parse_locations_count_strict(locations_count_raw)
+            if locations_count is not None and locations_count <= 0:
+                raise ValueError("'nr_of_locations' must be >= 1")
 
-        locations_count = parse_locations_count_strict(locations_count_raw)
-        if locations_count is None:
-            raise ValueError("'nr_of_locations' must be an integer")
-        if locations_count <= 0:
-            raise ValueError("'nr_of_locations' must be >= 1")
+        tables_count: int | None = None
+        if tables_count_raw not in (None, ""):
+            try:
+                tables_count = int(tables_count_raw)
+            except (TypeError, ValueError):
+                tables_count = None
 
-        lead_score = LeadService._score_for_locations(locations_count)
+        if isinstance(has_existing_system, str):
+            has_existing_system = has_existing_system.lower() in ("da", "yes", "true", "1")
+
+        lead_score = LeadService._score_for_locations(locations_count or 1)
 
         lead = Lead(
             name=name,
@@ -67,6 +71,10 @@ class LeadService:
             email=email,
             business_type=business_type,
             locations_count=locations_count,
+            tables_count=tables_count,
+            has_existing_system=has_existing_system,
+            city=city,
+            contact_preference=contact_preference,
             lead_score=lead_score,
         )
 
