@@ -16,6 +16,11 @@ from ..services.telegram_service import (
 )
 from ..services.validators import is_valid_email, is_valid_phone
 
+# ---------------------------------------------------------------------------
+# NOTE: This file was refactored to v2 flow (intent-first, user-friendly).
+# Stages: open → (consultation|support|human|qa) → lead_capture
+# ---------------------------------------------------------------------------
+
 
 bp = Blueprint("chat", __name__)
 
@@ -173,16 +178,24 @@ def _recommendation_prompt(business_type: str, locations: int, tables: int | Non
         f"{tables_str}, sistem existent: {existing_str}, oraș: {city or 'necunoscut'}.\n\n"
         "Pe baza informațiilor de mai sus și a bazei de cunoștințe RSistems, "
         "scrie o recomandare concisă (3–5 propoziții) cu soluțiile potrivite. "
-        "La final, întreabă: «Doriți să vă contacteze un consultant RSistems? (Da, telefonic / Da, pe email / Nu, mulțumesc)»"
+        "La final, întreabă: «Doriți să vă contacteze un consultant RSistems? (da / nu)»"
     )
 
 
 def _greeting() -> str:
     return (
-        "Bună! Sunt asistentul virtual RSistems. Vă pot ajuta cu automatizare HoReCa, retail, "
-        "supraveghere video, sisteme de parcare sau panouri digitale. "
-        "Pentru ce tip de afacere căutați o soluție? "
-        "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+        "Bună! Sunt asistentul virtual RSistems.\n"
+        "Vă pot ajuta să găsiți soluția potrivită pentru afacerea dvs., să rezolvați o problemă tehnică "
+        "sau să vă conectez cu un consultant RSistems.\n\n"
+        "Cu ce vă pot ajuta astăzi?"
+    )
+
+
+def _clarifying_question() -> str:
+    return (
+        "Puteți să îmi spuneți mai multe? "
+        "Căutați o soluție pentru afacerea dvs., aveți o problemă tehnică "
+        "sau doriți să vorbiți direct cu un consultant RSistems?"
     )
 
 
@@ -248,6 +261,68 @@ def _classify_demo_intent(*, user_text: str, last_assistant: str | None,
             api_key=api_key, model=model,
         )
     return "UNKNOWN"
+
+
+# ---------------------------------------------------------------------------
+# Path intent classifier (open stage)
+# ---------------------------------------------------------------------------
+
+_INTENT_LABELS = {"CONSULTATION", "SUPPORT", "HUMAN", "QA", "UNKNOWN"}
+
+
+def _classify_path_intent_rules(text: str) -> str | None:
+    """Fast rule-based pre-filter. Returns label or None to fall through to LLM."""
+    t = _normalize(text)
+    # Support signals
+    support_kw = ["nu merge", "nu functioneaza", "nu funcționează", "problema", "problemă",
+                  "eroare", "defect", "stricat", "suport", "nu porneste", "nu pornește",
+                  "nu tipareste", "nu tipărește", "bon fiscal", "casa de marcat nu", "pos nu"]
+    if any(k in t for k in support_kw):
+        return "SUPPORT"
+    # Human transfer signals
+    human_kw = ["manager", "operator", "consultant", "om real", "persoana", "persoană",
+                "vorbesc cu", "vorbi cu", "transfer", "angajat"]
+    if any(k in t for k in human_kw):
+        return "HUMAN"
+    # Consultation signals — business type keywords
+    consult_kw = ["restaurant", "cafenea", "bar", "pub", "fast-food", "fastfood", "pizza",
+                  "shaorma", "burger", "delivery", "livrare", "magazin", "retail",
+                  "afacere", "locatie", "locație", "pos", "gestiune", "solutie", "soluție",
+                  "sistem", "automatizare", "soft", "program"]
+    if any(k in t for k in consult_kw):
+        return "CONSULTATION"
+    return None
+
+
+def _classify_path_intent_llm(user_text: str, api_key: str, model: str) -> str:
+    """LLM classifier for path intent when rules are insufficient."""
+    if not api_key:
+        return "UNKNOWN"
+    classifier = LLMClient(api_key=api_key, model=model)
+    messages = [
+        {"role": "system", "content": (
+            "Ești un clasificator de intenție pentru un chatbot de vânzări RSistems (România). "
+            "Clasifică mesajul utilizatorului în una din categoriile:\n"
+            "CONSULTATION - vrea o soluție/ofertă/demo pentru afacerea lui\n"
+            "SUPPORT - are o problemă tehnică cu echipamente/soft existente\n"
+            "HUMAN - vrea să vorbească cu un om/manager/consultant\n"
+            "QA - are o întrebare despre RSistems, produse sau servicii\n"
+            "UNKNOWN - mesaj ambiguu sau salut fără context\n"
+            "Răspunde DOAR cu eticheta, fără text suplimentar."
+        )},
+        {"role": "user", "content": f"Mesaj: {user_text}\nEtichetă:"},
+    ]
+    label = (classifier.chat(messages=messages, temperature=0.0) or "").strip().upper()
+    label = re.sub(r"[^A-Z]+", "", label)
+    return label if label in _INTENT_LABELS else "UNKNOWN"
+
+
+def _classify_path_intent(user_text: str, api_key: str, model: str) -> str:
+    """Rules-first, LLM fallback path intent classifier."""
+    rule = _classify_path_intent_rules(user_text)
+    if rule:
+        return rule
+    return _classify_path_intent_llm(user_text, api_key, model)
 
 
 # ---------------------------------------------------------------------------
@@ -458,22 +533,19 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
         if not is_valid_phone(user_text.strip()):
             return "Nu am recunoscut un număr valid. Vă rog să îl scrieți din nou (ex: 07xx xxx xxx / +40...)."
         draft["phone"] = user_text.strip()
-        # If contact_preference is "email", also collect email; otherwise skip
-        contact_pref = meta.get("contact_preference", "phone")
-        if contact_pref == "email":
-            lead_state.update({"step": "email", "draft": draft})
-            _store.update_meta(conversation_id, {"lead": lead_state})
-            return "Îmi lăsați și adresa de email?"
-        else:
-            lead_state.update({"step": "business_name", "draft": draft})
-            _store.update_meta(conversation_id, {"lead": lead_state})
-            return "Care este numele afacerii/locației dvs.?"
+        lead_state.update({"step": "email", "draft": draft})
+        _store.update_meta(conversation_id, {"lead": lead_state})
+        return "Îmi lăsați și adresa de email? (ex: nume@domeniu.ro)"
 
     if step == "email":
-        email = _extract_email(user_text)
-        if not email or not is_valid_email(email):
-            return "Nu am recunoscut un email valid. Vă rog să îl scrieți din nou (ex: nume@domeniu.ro)."
-        draft["email"] = email
+        t = _normalize(user_text)
+        if any(k in t for k in ["nu am", "nu am email", "nu", "skip", "fara", "fără"]):
+            draft["email"] = None
+        else:
+            email = _extract_email(user_text)
+            if not email or not is_valid_email(email):
+                return "Nu am recunoscut un email valid. Vă rog să îl scrieți (ex: nume@domeniu.ro) sau scrieți 'nu am'."
+            draft["email"] = email
         lead_state.update({"step": "business_name", "draft": draft})
         _store.update_meta(conversation_id, {"lead": lead_state})
         return "Care este numele afacerii/locației dvs.?"
@@ -486,7 +558,6 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
         lead_state.update({"step": None, "active": False, "draft": draft})
         _store.update_meta(conversation_id, {"lead": lead_state, "stage": "chatting"})
 
-        # Pull qualifying data into payload
         q = meta.get("qualifying") or {}
         payload = {
             "name": draft.get("name"),
@@ -498,7 +569,6 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
             "tables_count": q.get("tables"),
             "has_existing_system": q.get("existing"),
             "city": q.get("city"),
-            "contact_preference": meta.get("contact_preference"),
         }
 
         try:
@@ -541,14 +611,14 @@ def chat():
             {"role": "assistant", "content": _greeting()},
         ])
         _store.update_meta(conversation_id, {
-            "stage": "awaiting_business_type",
+            "stage": "open",
             "business_type": None,
             "qualifying": {"step": None},
             "support": {"step": None},
             "human_transfer": {"step": None},
             "lead": {"active": False, "step": None, "draft": {}},
-            "contact_preference": None,
-            "pending_human_contact_confirm": False,
+            "clarify_attempted": False,
+            "pending_contact_confirm": False,
         })
         return jsonify({"conversation_id": conversation_id, "reply": _greeting()})
 
@@ -571,35 +641,78 @@ def chat():
         _store.append(conversation_id, {"role": "assistant", "content": reply})
         return jsonify({"conversation_id": conversation_id, "reply": reply})
 
-    # ── Active sub-flows (highest priority) ──────────────────────────────────
+    # ── Active sub-flows (highest priority — run before stage checks) ─────────
 
-    # Support flow
     support_reply = _handle_support_flow(conversation_id, user_text, meta)
     if support_reply is not None:
         _store.append(conversation_id, {"role": "user", "content": user_text})
         return _respond(support_reply)
 
-    # Human transfer flow
     transfer_reply = _handle_human_transfer(conversation_id, user_text, meta)
     if transfer_reply is not None:
         _store.append(conversation_id, {"role": "user", "content": user_text})
         return _respond(transfer_reply)
 
-    # Lead capture flow
     lead_reply = _handle_lead_capture(conversation_id, user_text, meta)
     if lead_reply is not None:
         _store.append(conversation_id, {"role": "user", "content": user_text})
         return _respond(lead_reply)
 
-    # ── Stage: awaiting_business_type ─────────────────────────────────────────
-    if stage == "awaiting_business_type":
-        # Support intent?
-        if _detect_support_intent(user_text):
+    # ── Stage: open — classify intent from first free-text message ────────────
+    if stage == "open":
+        intent = _classify_path_intent(user_text, api_key, model)
+
+        if intent == "SUPPORT":
             _store.update_meta(conversation_id, {"support": {"step": "company"}, "stage": "support_flow"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Îmi pare rău că întâmpinați probleme. Pentru a vă ajuta rapid, îmi spuneți numele companiei/locației?")
 
-        # Human transfer intent?
+        if intent == "HUMAN":
+            _store.update_meta(conversation_id, {"human_transfer": {"step": "name"}, "stage": "human_transfer"})
+            _store.append(conversation_id, {"role": "user", "content": user_text})
+            return _respond("Sigur. Cum vă numiți, vă rog?")
+
+        if intent == "CONSULTATION":
+            # Check if business type already known from message
+            bt = _extract_business_type(user_text)
+            if bt:
+                _store.update_meta(conversation_id, {
+                    "business_type": bt,
+                    "stage": "qualifying",
+                    "qualifying": {"step": "locations"},
+                })
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond(f"Am notat: {bt}. Câte locații aveți?")
+            else:
+                _store.update_meta(conversation_id, {"stage": "awaiting_business_type"})
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond(
+                    "Cu plăcere! Pentru ce tip de afacere căutați o soluție? "
+                    "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+                )
+
+        if intent == "QA":
+            _store.update_meta(conversation_id, {"stage": "chatting"})
+            # Fall through to KB+LLM section below
+            stage = "chatting"
+
+        if intent == "UNKNOWN":
+            if not meta.get("clarify_attempted"):
+                _store.update_meta(conversation_id, {"clarify_attempted": True})
+                _store.append(conversation_id, {"role": "user", "content": user_text})
+                return _respond(_clarifying_question())
+            else:
+                # Second attempt still unknown → default to QA / chatting
+                _store.update_meta(conversation_id, {"stage": "chatting", "clarify_attempted": False})
+                stage = "chatting"
+
+    # ── Stage: awaiting_business_type ─────────────────────────────────────────
+    if stage == "awaiting_business_type":
+        if _detect_support_intent(user_text):
+            _store.update_meta(conversation_id, {"support": {"step": "company"}, "stage": "support_flow"})
+            _store.append(conversation_id, {"role": "user", "content": user_text})
+            return _respond("Îmi pare rău că întâmpinați probleme. Îmi spuneți numele companiei/locației?")
+
         if _detect_human_intent(user_text):
             _store.update_meta(conversation_id, {"human_transfer": {"step": "name"}, "stage": "human_transfer"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
@@ -608,7 +721,10 @@ def chat():
         bt = _extract_business_type(user_text)
         if not bt:
             _store.append(conversation_id, {"role": "user", "content": user_text})
-            return _respond("Nu am reușit să identific tipul afacerii. Lucrați cu un Restaurant, Cafenea, Bar-Pub, Fast-food, Delivery sau Lanț de locații?")
+            return _respond(
+                "Nu am reușit să identific tipul afacerii. "
+                "Lucrați cu un Restaurant, Cafenea, Bar-Pub, Fast-food, Delivery sau Lanț de locații?"
+            )
 
         _store.update_meta(conversation_id, {
             "business_type": bt,
@@ -622,7 +738,6 @@ def chat():
     if stage == "qualifying":
         q_reply = _handle_qualifying(conversation_id, user_text, meta)
         if q_reply == "__RECOMMENDATION__":
-            # Refresh meta after qualifying updates
             meta = _store.get_meta(conversation_id)
             q = meta.get("qualifying") or {}
             business_type = meta.get("business_type", "")
@@ -651,63 +766,48 @@ def chat():
                 rec_reply = (
                     f"Pe baza informațiilor colectate, vă pot recomanda o soluție completă RSistems pentru {business_type}. "
                     "Un consultant vă poate pregăti o ofertă personalizată.\n\n"
-                    "Doriți să vă contacteze un consultant RSistems? (Da, telefonic / Da, pe email / Nu, mulțumesc)"
+                    "Doriți să vă contacteze un consultant RSistems? (da / nu)"
                 )
-            _store.update_meta(conversation_id, {"stage": "awaiting_contact_preference"})
+            _store.update_meta(conversation_id, {"stage": "pending_contact_confirm"})
             return _respond(rec_reply)
 
         if q_reply is not None:
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond(q_reply)
 
-    # ── Stage: awaiting_contact_preference ───────────────────────────────────
-    if stage == "awaiting_contact_preference":
-        t = _normalize(user_text)
-        if any(k in t for k in ["telefon", "telefonic", "suna", "sună", "apel"]):
-            pref = "phone"
-        elif "email" in t:
-            pref = "email"
-        elif _detect_yes(user_text):
-            pref = "phone"  # default "da" → phone
-        elif _detect_no(user_text):
+    # ── Stage: pending_contact_confirm ────────────────────────────────────────
+    if stage == "pending_contact_confirm":
+        if _detect_yes(user_text):
+            _store.update_meta(conversation_id, {
+                "lead": {"active": True, "step": "name", "draft": {}},
+                "stage": "lead_capture",
+            })
+            _store.append(conversation_id, {"role": "user", "content": user_text})
+            return _respond("Cum vă numiți, vă rog?")
+        if _detect_no(user_text):
             _store.update_meta(conversation_id, {"stage": "chatting"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Înțeles. Dacă aveți întrebări suplimentare, sunt aici să vă ajut.")
-        else:
+        _store.append(conversation_id, {"role": "user", "content": user_text})
+        return _respond("Doriți să vă contacteze un consultant RSistems? (da / nu)")
+
+    # ── Stage: chatting (free KB + LLM) ──────────────────────────────────────
+    # Always re-check for support/human escalation during free chat
+    if stage == "chatting":
+        if _detect_support_intent(user_text):
+            _store.update_meta(conversation_id, {"support": {"step": "company"}, "stage": "support_flow"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
-            return _respond("Doriți să fiți contactat telefonic sau pe email? (telefon / email / nu, mulțumesc)")
+            return _respond("Îmi pare rău că întâmpinați probleme. Îmi spuneți numele companiei/locației?")
 
-        _store.update_meta(conversation_id, {
-            "contact_preference": pref,
-            "stage": "lead_capture",
-            "lead": {"active": True, "step": "name", "draft": {}},
-        })
-        _store.append(conversation_id, {"role": "user", "content": user_text})
-        return _respond("Cum vă numiți, vă rog?")
-
-    # ── Stage: recommendation (arrived here without going through qualifying sentinel) ─
-    if stage == "recommendation":
-        # Shouldn't normally land here — redirect to contact preference
-        _store.update_meta(conversation_id, {"stage": "awaiting_contact_preference"})
-        _store.append(conversation_id, {"role": "user", "content": user_text})
-        return _respond("Doriți să vă contacteze un consultant RSistems? (Da, telefonic / Da, pe email / Nu, mulțumesc)")
-
-    # ── Stage: chatting (free-form with KB + LLM) ────────────────────────────
-    # Check for support/human/demo intents before passing to LLM
-    if _detect_support_intent(user_text):
-        _store.update_meta(conversation_id, {"support": {"step": "company"}, "stage": "support_flow"})
-        _store.append(conversation_id, {"role": "user", "content": user_text})
-        return _respond("Îmi pare rău că întâmpinați probleme. Îmi spuneți numele companiei/locației?")
-
-    if _detect_human_intent(user_text):
-        _store.update_meta(conversation_id, {"human_transfer": {"step": "name"}, "stage": "human_transfer"})
-        _store.append(conversation_id, {"role": "user", "content": user_text})
-        return _respond("Sigur. Cum vă numiți, vă rog?")
+        if _detect_human_intent(user_text):
+            _store.update_meta(conversation_id, {"human_transfer": {"step": "name"}, "stage": "human_transfer"})
+            _store.append(conversation_id, {"role": "user", "content": user_text})
+            return _respond("Sigur. Cum vă numiți, vă rog?")
 
     history = _store.get(conversation_id)
     last_assistant = _last_assistant_message(history)
 
-    # Demo intent shortcuts
+    # Demo intent shortcut (any stage)
     if _assistant_asked_demo(last_assistant) or _detect_demo_intent(user_text):
         label = _classify_demo_intent(
             user_text=user_text, last_assistant=last_assistant,
@@ -716,7 +816,6 @@ def chat():
         if label == "WANTS_DEMO":
             _store.update_meta(conversation_id, {
                 "lead": {"active": True, "step": "name", "draft": {}},
-                "contact_preference": "phone",
                 "stage": "lead_capture",
             })
             _store.append(conversation_id, {"role": "user", "content": user_text})
@@ -725,23 +824,7 @@ def chat():
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Spuneți-mi ce ați dori să aflați despre sistem.")
 
-    # Contact preference confirmation (pending)
-    if meta.get("pending_human_contact_confirm"):
-        if _detect_yes(user_text):
-            _store.update_meta(conversation_id, {
-                "lead": {"active": True, "step": "name", "draft": {}},
-                "contact_preference": "phone",
-                "stage": "lead_capture",
-                "pending_human_contact_confirm": False,
-            })
-            _store.append(conversation_id, {"role": "user", "content": user_text})
-            return _respond("Cum vă numiți, vă rog?")
-        if _detect_no(user_text):
-            _store.update_meta(conversation_id, {"pending_human_contact_confirm": False})
-            _store.append(conversation_id, {"role": "user", "content": user_text})
-            return _respond("Spuneți-mi, vă rog, cu ce vă pot ajuta.")
-
-    # KB + LLM free-form answer
+    # KB + LLM
     try:
         snippets = _kb_search(user_text)
     except ValueError as exc:
@@ -752,7 +835,7 @@ def chat():
 
     if not snippets:
         fallback = "Nu sunt sigur că am înțeles. Doriți să vă contactăm? (da/nu)"
-        _store.update_meta(conversation_id, {"pending_human_contact_confirm": True})
+        _store.update_meta(conversation_id, {"stage": "pending_contact_confirm"})
         return _respond(fallback)
 
     try:
