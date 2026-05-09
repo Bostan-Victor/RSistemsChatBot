@@ -271,26 +271,41 @@ _INTENT_LABELS = {"CONSULTATION", "SUPPORT", "HUMAN", "QA", "UNKNOWN"}
 
 
 def _classify_path_intent_rules(text: str) -> str | None:
-    """Fast rule-based pre-filter. Returns label or None to fall through to LLM."""
+    """Fast rule-based pre-filter for high-confidence signals only.
+
+    Only returns SUPPORT or HUMAN — CONSULTATION vs QA is left to the LLM
+    because keyword overlap (e.g. 'sistem' inside 'rsistems') causes false positives.
+    Returns None to fall through to LLM for everything else.
+    """
     t = _normalize(text)
-    # Support signals
-    support_kw = ["nu merge", "nu functioneaza", "nu funcționează", "problema", "problemă",
-                  "eroare", "defect", "stricat", "suport", "nu porneste", "nu pornește",
-                  "nu tipareste", "nu tipărește", "bon fiscal", "casa de marcat nu", "pos nu"]
-    if any(k in t for k in support_kw):
+
+    # Support: explicit broken/not-working phrases
+    support_phrases = [
+        "nu merge", "nu functioneaza", "nu funcționează",
+        "nu lucreaza", "nu lucrează", "nu mai lucreaza", "nu mai lucrează",
+        "nu porneste", "nu pornește", "nu tipareste", "nu tipărește",
+        "nu raspunde", "nu răspunde", "nu afiseaza", "nu afișează",
+        "casa de marcat nu", "pos nu", "bon fiscal",
+        "eroare", "defect", "stricat",
+    ]
+    if any(k in t for k in support_phrases):
         return "SUPPORT"
-    # Human transfer signals
-    human_kw = ["manager", "operator", "consultant", "om real", "persoana", "persoană",
-                "vorbesc cu", "vorbi cu", "transfer", "angajat"]
+
+    # Support: negation word + hardware/device name in same message
+    negation = any(w in t.split() for w in ["nu", "n-a", "n-am"])
+    device_kw = ["pos", "casa de marcat", "bon", "imprimanta", "imprimantă",
+                 "ecran", "display", "scanner", "sertar", "terminal", "chitanta", "chitanță"]
+    if negation and any(k in t for k in device_kw):
+        return "SUPPORT"
+
+    # Human: explicit request for a person/manager
+    human_kw = ["manager", "operator", "om real", "persoana", "persoană",
+                "vorbesc cu", "vorbi cu", "transfer", "angajat",
+                "vreau sa vorbesc", "vreau să vorbesc"]
     if any(k in t for k in human_kw):
         return "HUMAN"
-    # Consultation signals — business type keywords
-    consult_kw = ["restaurant", "cafenea", "bar", "pub", "fast-food", "fastfood", "pizza",
-                  "shaorma", "burger", "delivery", "livrare", "magazin", "retail",
-                  "afacere", "locatie", "locație", "pos", "gestiune", "solutie", "soluție",
-                  "sistem", "automatizare", "soft", "program"]
-    if any(k in t for k in consult_kw):
-        return "CONSULTATION"
+
+    # Everything else (CONSULTATION vs QA) — let the LLM decide
     return None
 
 
