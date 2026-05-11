@@ -10,6 +10,7 @@ from ..extensions import db
 from ..models.demo_reservation import DemoReservation
 from ..services.calendar_service import create_event, get_available_slots
 from ..services.email_service import send_demo_confirmation
+from ..services.telegram_service import send_reservation_notification
 from ..services.validators import is_valid_email, is_valid_phone
 
 bp = Blueprint("demo_reservation", __name__)
@@ -105,6 +106,17 @@ def demo_reservation():
         db.session.rollback()
         log.exception("Error saving demo reservation to DB")
         return jsonify({"error": "db_error", "message": str(exc)}), 500
+
+    try:
+        send_reservation_notification(
+            name=name,
+            phone=phone,
+            email=email,
+            business_type=business_type,
+            reserved_datetime=reserved_dt.strftime("%d %B %Y, %H:%M"),
+        )
+    except Exception as exc:
+        log.warning("Telegram reservation notification failed: %s", exc)
 
     try:
         send_demo_confirmation(

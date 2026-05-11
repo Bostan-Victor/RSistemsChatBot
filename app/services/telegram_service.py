@@ -112,6 +112,39 @@ def send_transcript_document(*, lead_ref: str, messages: list[dict]) -> None:
     response.raise_for_status()
 
 
+def send_reservation_notification(
+    *, name: str, phone: str, email: str, business_type: str, reserved_datetime: str
+) -> None:
+    """Send a Telegram message when a demo showroom reservation is created.
+
+    Raises ValueError if env vars are missing.
+    Raises requests.RequestException on failure.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN is not set.")
+    if not chat_id:
+        raise ValueError("TELEGRAM_CHAT_ID is not set.")
+
+    text = (
+        f"📅 Rezervare Demo Showroom RSistems:\n"
+        f"Nume: {name or '—'}\n"
+        f"Telefon: {phone or '—'}\n"
+        f"Email: {email or '—'}\n"
+        f"Tip afacere: {business_type or '—'}\n"
+        f"Data și ora: {reserved_datetime or '—'}"
+    )
+
+    response = requests.post(
+        f"{_API_BASE}/bot{token}/sendMessage",
+        json={"chat_id": chat_id, "text": text},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
 def send_human_transfer_notification(*, name: str, phone: str, topic: str) -> None:
     """Send a Telegram message for a human manager transfer request.
 
