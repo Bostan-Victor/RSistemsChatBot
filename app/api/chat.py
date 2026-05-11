@@ -55,12 +55,41 @@ def _normalize(text: str) -> str:
 
 def _detect_yes(text: str) -> bool:
     t = _normalize(text)
-    return any(p in t.split() for p in ["da", "sigur", "ok", "bine", "desigur", "vreau", "doresc"]) or t in {"yes", "y"}
+    words = t.split()
+    if len(words) > 4:
+        return False
+    return any(p in words for p in ["da", "sigur", "ok", "bine", "desigur", "vreau", "doresc"]) or t in {"yes", "y"}
 
 
 def _detect_no(text: str) -> bool:
     t = _normalize(text)
-    return any(p in t.split() for p in ["nu", "nici", "nup", "no"]) or t in {"n"}
+    words = t.split()
+    if len(words) > 4:
+        return False
+    return any(p in words for p in ["nu", "nici", "nup", "no"]) or t in {"n"}
+
+
+def _classify_yes_no(text: str, api_key: str, model: str) -> str:
+    """LLM-based yes/no classifier. Returns 'YES', 'NO', or 'UNKNOWN'."""
+    if not api_key:
+        return "UNKNOWN"
+    classifier = LLMClient(api_key=api_key, model=model)
+    messages = [
+        {"role": "system", "content": (
+            "Ești un clasificator STRICT de intenție. "
+            "Determină dacă mesajul utilizatorului reprezintă un răspuns POZITIV (vrea să fie contactat), "
+            "NEGATIV (nu vrea să fie contactat) sau ALTCEVA (întrebare, comentariu, alt subiect). "
+            "Răspunde DOAR cu una din valorile: YES | NO | UNKNOWN. Nu adăuga text suplimentar."
+        )},
+        {"role": "user", "content": text},
+    ]
+    try:
+        result = classifier.chat(messages=messages).strip().upper()
+        if result in {"YES", "NO", "UNKNOWN"}:
+            return result
+        return "UNKNOWN"
+    except Exception:
+        return "UNKNOWN"
 
 
 def _extract_business_type(text: str) -> str | None:
@@ -830,14 +859,15 @@ def chat():
 
     # ── Stage: pending_contact_confirm ────────────────────────────────────────
     if stage == "pending_contact_confirm":
-        if _detect_yes(user_text):
+        yn = _classify_yes_no(user_text, api_key, model)
+        if yn == "YES":
             _store.update_meta(conversation_id, {
                 "lead": {"active": True, "step": "name", "draft": {}},
                 "stage": "lead_capture",
             })
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Cum vă numiți, vă rog?")
-        if _detect_no(user_text):
+        if yn == "NO":
             _store.update_meta(conversation_id, {"stage": "chatting"})
             _store.append(conversation_id, {"role": "user", "content": user_text})
             return _respond("Înțeles. Dacă aveți întrebări suplimentare, sunt aici să vă ajut.")
