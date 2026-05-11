@@ -76,10 +76,12 @@ def _classify_yes_no(text: str, api_key: str, model: str) -> str:
     classifier = LLMClient(api_key=api_key, model=model)
     messages = [
         {"role": "system", "content": (
-            "Ești un clasificator STRICT de intenție. "
-            "Determină dacă mesajul utilizatorului reprezintă un răspuns POZITIV (vrea să fie contactat), "
-            "NEGATIV (nu vrea să fie contactat) sau ALTCEVA (întrebare, comentariu, alt subiect). "
-            "Răspunde DOAR cu una din valorile: YES | NO | UNKNOWN. Nu adăuga text suplimentar."
+            "Ești un clasificator STRICT. "
+            "Contextul: botul RSistems tocmai a întrebat utilizatorul: '’Doriți să vă contacteze un consultant RSistems? (da / nu)'. "
+            "Determină dacă mesajul utilizatorului este EXPLICIT un răspuns POZITIV la această întrebare (confirmă clar că vrea să fie contactat) "
+            "sau EXPLICIT NEGATIV (refuză clar contactul). "
+            "Dacă mesajul este o întrebare, un comentariu, un subiect diferit sau există ORICE dubiu, răspunde cu UNKNOWN. "
+            "Răspunde DOAR cu: YES | NO | UNKNOWN. Fără text suplimentar."
         )},
         {"role": "user", "content": text},
     ]
