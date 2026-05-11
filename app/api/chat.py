@@ -179,7 +179,7 @@ def _recommendation_prompt(business_type: str, locations: int, tables: int | Non
         f"{tables_str}, sistem existent: {existing_str}, oraș: {city or 'necunoscut'}.\n\n"
         "Pe baza informațiilor de mai sus și a bazei de cunoștințe RSistems, "
         "scrie o recomandare concisă (3–5 propoziții) cu soluțiile potrivite. "
-        "La final, întreabă: «Doriți să vă contacteze un consultant RSistems? (da / nu)»"
+        "Nu adăuga nicio întrebare la final — aceasta va fi adăugată automat."
     )
 
 
@@ -817,9 +817,10 @@ def chat():
                 current_app.logger.warning("LLM recommendation failed: %s", exc)
                 rec_reply = (
                     f"Pe baza informațiilor colectate, vă pot recomanda o soluție completă RSistems pentru {business_type}. "
-                    "Un consultant vă poate pregăti o ofertă personalizată.\n\n"
-                    "Doriți să vă contacteze un consultant RSistems? (da / nu)"
+                    "Un consultant vă poate pregăti o ofertă personalizată."
                 )
+            if "(da / nu)" not in rec_reply and "(da/nu)" not in rec_reply:
+                rec_reply = rec_reply.rstrip() + "\n\nDoriți să vă contacteze un consultant RSistems? (da / nu)"
             _store.update_meta(conversation_id, {"stage": "pending_contact_confirm"})
             return _respond(rec_reply)
 
