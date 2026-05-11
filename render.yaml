@@ -3,7 +3,7 @@ services:
     name: rsistems-chatbot
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn wsgi:app --workers 1 --threads 8 --timeout 60
     envVars:
       - key: OPENAI_API_KEY
         sync: false
