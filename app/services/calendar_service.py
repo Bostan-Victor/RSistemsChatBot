@@ -16,19 +16,23 @@ _WORK_WEEKDAYS = {0, 1, 2, 3, 4}  # Mon–Fri
 
 
 def _build_service():
+    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    if json_content:
+        info = json.loads(json_content)
+        creds = service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
+        return build("calendar", "v3", credentials=creds, cache_discovery=False)
+
     json_path = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON_PATH", "")
     if not json_path:
-        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON_PATH is not set.")
+        raise ValueError(
+            "Neither GOOGLE_SERVICE_ACCOUNT_JSON nor GOOGLE_SERVICE_ACCOUNT_JSON_PATH is set."
+        )
     if not os.path.isabs(json_path):
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         json_path = os.path.join(project_root, json_path)
     if not os.path.isfile(json_path):
-        raise ValueError(
-            f"Service account file not found at: {json_path}"
-        )
-    creds = service_account.Credentials.from_service_account_file(
-        json_path, scopes=_SCOPES
-    )
+        raise ValueError(f"Service account file not found at: {json_path}")
+    creds = service_account.Credentials.from_service_account_file(json_path, scopes=_SCOPES)
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
 

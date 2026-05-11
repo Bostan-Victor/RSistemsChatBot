@@ -37,8 +37,7 @@ def send_lead_notification(lead: Lead) -> None:
         f"Nr. Locații: {lead.locations_count or '—'}\n"
         f"Nr. Mese/POS: {lead.tables_count or '—'}\n"
         f"Sistem existent: {existing}\n"
-        f"Oraș: {lead.city or '—'}\n"
-        f"Preferință contact: {lead.contact_preference or '—'}"
+        f"Oraș: {lead.city or '—'}"
     )
 
     response = requests.post(
