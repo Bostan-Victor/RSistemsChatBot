@@ -611,6 +611,33 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
             if not email or not is_valid_email(email):
                 return "Nu am recunoscut un email valid. Vă rog să îl scrieți (ex: nume@domeniu.ro) sau scrieți 'nu am'."
             draft["email"] = email
+        if not meta.get("business_type"):
+            lead_state.update({"step": "business_type_q", "draft": draft})
+            _store.update_meta(conversation_id, {"lead": lead_state})
+            return (
+                "Pentru ce tip de afacere căutați o soluție? "
+                "(Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații)"
+            )
+        lead_state.update({"step": "city_q", "draft": draft})
+        _store.update_meta(conversation_id, {"lead": lead_state})
+        return "În ce oraș/localitate vă aflați?"
+
+    if step == "business_type_q":
+        bt = _extract_business_type(user_text)
+        if not bt:
+            return (
+                "Nu am recunoscut tipul afacerii. Vă rog alegeți: "
+                "Restaurant / Cafenea / Bar-Pub / Fast-food / Delivery / Lanț de locații"
+            )
+        draft["business_type"] = bt
+        _store.update_meta(conversation_id, {"business_type": bt})
+        lead_state.update({"step": "city_q", "draft": draft})
+        _store.update_meta(conversation_id, {"lead": lead_state})
+        return "În ce oraș/localitate vă aflați?"
+
+    if step == "city_q":
+        city = user_text.strip()
+        draft["city"] = city if len(city) >= 2 else None
         lead_state.update({"step": "business_name", "draft": draft})
         _store.update_meta(conversation_id, {"lead": lead_state})
         return "Care este numele afacerii/locației dvs.?"
@@ -629,11 +656,11 @@ def _handle_lead_capture(conversation_id: str, user_text: str, meta: dict) -> st
             "phone": draft.get("phone"),
             "email": draft.get("email"),
             "business_name": business_name,
-            "type_of_business": meta.get("business_type"),
+            "type_of_business": meta.get("business_type") or draft.get("business_type"),
             "nr_of_locations": q.get("locations"),
             "tables_count": q.get("tables"),
             "has_existing_system": q.get("existing"),
-            "city": q.get("city"),
+            "city": q.get("city") or draft.get("city"),
         }
 
         try:
